@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Глубинка: Метель</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=PT+Serif:400,700&display=swap');
+        body, html {
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            font-family: 'PT Serif', serif;
+            background: #191a1e;
+            color: #e6e1db;
+            overflow: hidden;
+        }
+        #bg {
+            position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+            background: #000 no-repeat center center / cover;
+            z-index: 0;
+            transition: background-image 1s, filter .7s;
+        }
+        #overlay {
+            position: fixed; left:0; top:0; width:100vw; height:100vh;
+            background:rgba(17,18,21,0.65);
+            z-index:1;
+            pointer-events:none;
+        }
+        #novel {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 96vw; max-width: 700px;
+            min-height: 170px;
+            background: rgba(24, 24, 30, 0.82);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 0 32px 4px #0009;
+            z-index:2; padding: 32px 28px 30px 28px;
+            font-size: 1.25em; letter-spacing: .01em; line-height: 1.55;
+            transition: background .7s;
+        }
+        #choices {
+            margin-top: 28px; display: flex; gap: 18px; flex-wrap: wrap;
+        }
+        .choice-btn {
+            background: #242635;
+            color: #e6e1db;
+            border: none; outline: none;
+            border-radius: 11px;
+            padding: 10px 26px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: background .2s, transform .15s;
+        }
+        .choice-btn:hover {
+            background: #31405a;
+            transform: translateY(-2px) scale(1.04);
+        }
+        #name {
+            position: absolute; left: 34px; bottom: 100%; transform: translateY(-8px);
+            color: #cabf97; font-weight: bold; font-size: 1.05em;
+            background: rgba(33, 30, 21, 0.87);
+            padding: 2px 12px; border-radius: 10px 10px 0 0;
+            z-index:3; letter-spacing: .03em;
+        }
+        @media (max-width: 700px) {
+            #novel { font-size:1em; padding:18px 9vw 15px 9vw; }
+            #name { left:12px; font-size:.97em;}
+        }
+        .fade-in { animation: fadeIn .8s; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .shiver { animation: shiver .09s 6; }
+        @keyframes shiver {
+            0% { filter: blur(1.5px) brightness(0.95);}
+            100% { filter: blur(0) brightness(1);}
+        }
+    </style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="overlay"></div>
+<div id="novel">
+    <div id="name"></div>
+    <div id="text"></div>
+    <div id="choices"></div>
+</div>
+<audio id="amb" loop></audio>
+<script>
+    // Картинки (названия должны совпадать с файлами)
+    const BG = {
+        hrushevka: 'hrushevka.jpg',
+        stancia: 'stancia.jpg',
+        street: 'street.jpg',
+        snowstorm: 'snowstorm.jpg'
+    };
+    // Музыка/звуки можно добавить (по желанию)
+
+    // Главные герои
+    const chars = {
+        'ГГ': 'Артём', // или "Я"
+        'Райка': 'Райка',
+        'Павел': 'Павел',
+        '—': ''
+    };
+
+    // Структура сцен
+    const scenes = {
+        start: {
+            bg: BG.hrushevka,
+            name: "—",
+            text: `<span style="color:#cabf97">День 1, 4:00 утра. Квартира бабушки.</span><br><br>
+        Просыпаемся рано, в квартире темно и тихо. Райка молча ставит воду. За окном метёт, свет от лампы — жёлтый, как чай. Готовим кашу, пьём чай.<br><br>
+        В голове вспоминается: смерть родителей, неудачный бизнес, развод Райки, как мы оказались здесь, в этой старой хрущёвке. Всё это как-то глухо, на фоне стука ложек.`,
+            choices: [
+                { text: "Осмотреть полку с фотографиями", next: "shelf" },
+                { text: "Посмотреть на окно", next: "window" }
+            ]
+        },
+        shelf: {
+            bg: BG.hrushevka,
+            name: "—",
+            text: `Пыльная полка: старая фотка родителей, письмо с почерком бабушки, пустая вазочка. Странно: как будто что-то забыл здесь навсегда.`,
+            choices: [
+                { text: "Достаточно. Завтракать", next: "breakfast" }
+            ]
+        },
+        window: {
+            bg: BG.hrushevka,
+            name: "—",
+            text: `За окном пурга. На стекле иней странно извивается, будто пишет узоры. Где-то в соседней комнате скрипит пол.<br>Райка замечает взгляд и улыбается краем губ.`,
+            choices: [
+                { text: "Сесть за стол", next: "breakfast" }
+            ]
+        },
+        breakfast: {
+            bg: BG.hrushevka,
+            name: "Райка",
+            text: `<b>Райка:</b> Ешь. Остынет.<br>
+        <b>Я:</b> Угу.<br>
+        <i>(Мы молчим. Всё важное — внутри. Вспоминается, как исчезла мама... Как потом, уже в тишине, ушёл отец. Райка разводилась, бабушка медленно угасала... Теперь мы тут, в этой квартире.)</i>`,
+            choices: [
+                { text: "Дальше", next: "walk" }
+            ]
+        },
+        walk: {
+            bg: BG.street,
+            name: "—",
+            text: `<span style="color:#cabf97">5:30 утра. На улице</span><br>
+        Мы выходим в снег, почти не разговариваем. Света мало, город спит, шаги вязнут в снегу. От Райки — сдержанное тепло: короткие фразы, бытовые подколы.<br>
+        По пути к метеостанции будто уходим в изоляцию: не дома, но ещё не на станции.`,
+            choices: [
+                { text: "Дойти до станции", next: "station1" }
+            ]
+        },
+        station1: {
+            bg: BG.stancia,
+            name: "Павел",
+            text: `<span style="color:#cabf97">6:00. Метеостанция</span><br>
+        Нас встречают Павел и его молчаливый напарник. Павел сдержан, будто ждал нас.<br>
+        <b>Павел:</b> Тут всё тихо. Но не всегда.<br>
+        <b>Павел:</b> Иногда тепло — это всё, что спасает.<br>
+        <i>(Вспоминается, как бабушка когда-то приютила Павла во время метели. После её смерти он просто дал нам ключи от станции: "Чтобы не пропали".)</i>`,
+            choices: [
+                { text: "Начать смену", next: "shift" }
+            ]
+        },
+        shift: {
+            bg: BG.stancia,
+            name: "—",
+            text: `<span style="color:#cabf97">7:00–12:00. Смена</span><br>
+        Осматриваем оборудование. Всё старое, стрелки дрожат, барограф вдруг показывает странный скачок.<br>
+        <b>Райка:</b> Старьё шалит.<br>
+        Я записываю показания. Райка на кухне, пишет в журнал.`,
+            choices: [
+                { text: "Подойти к старому зеркалу", next: "mirror" },
+                { text: "Потыкать в стрелку прибора", next: "instrument" }
+            ]
+        },
+        mirror: {
+            bg: BG.stancia,
+            name: "—",
+            text: `В зеркале мутно отражается комната. На стекле странное пятно — будто кто-то долго смотрел отсюда наружу.<br><i>Почти жутко.</i>`,
+            choices: [
+                { text: "Дальше", next: "citywalk" }
+            ]
+        },
+        instrument: {
+            bg: BG.stancia,
+            name: "—",
+            text: `Стрелка вибрирует под пальцем. На мгновение кажется, что прибор дышит — но всё возвращается к обычной дрожи. Старьё, но работает.`,
+            choices: [
+                { text: "Дальше", next: "citywalk" }
+            ]
+        },
+        citywalk: {
+            bg: BG.street,
+            name: "—",
+            text: `<span style="color:#cabf97">12:00. Город</span><br>
+        Выхожу по делам. На остановке мужчина говорит сам с собой, будто рядом кто-то есть. Не вмешиваюсь. Просто иду дальше. Сцена оседает в голове, но не записываю её в журнал.`,
+            choices: [
+                { text: "Вернуться на станцию", next: "lunch" }
+            ]
+        },
+        lunch: {
+            bg: BG.stancia,
+            name: "Райка",
+            text: `<span style="color:#cabf97">14:00. Обед</span><br>
+        <b>Райка:</b> Суп хоть горячий получился.<br>
+        <b>Я:</b> Да, нормально.<br>
+        <i>Привычные бытовые разговоры. Райка ворчит, я отвечаю в полголоса.</i>`,
+            choices: [
+                { text: "Дремать в кресле", next: "dream" }
+            ]
+        },
+        dream: {
+            bg: BG.stancia,
+            name: "—",
+            text: `<span style="color:#cabf97">14:30. Сон</span><br>
+        Мне снится: выхожу покурить, а на крыльце сидит бабушка. Не пугает, просто смотрит.<br>
+        <b>Бабушка:</b> Я писала, я звала, а ты не приехал.<br>
+        Я хочу ответить, но не могу. Просыпаюсь — с письмом от неё в кармане. Бумажное, с её почерком. Дата — за несколько месяцев до смерти.`,
+            choices: [
+                { text: "Показать письмо Райке", next: "showletter" },
+                { text: "Прочитать ночью в одиночестве", next: "readalone" }
+            ]
+        },
+        showletter: {
+            bg: BG.stancia,
+            name: "Райка",
+            text: `<b>Райка:</b> Она всё знала наперёд, да?<br>
+        <i>Мы говорим тихо, по-настоящему. Вдруг в комнате резко холодно. Свет гаснет, изо рта идёт пар, по окну ползёт иней. Тридцать секунд абсолютной тьмы. Потом всё возвращается в норму.</i>`,
+            choices: [
+                { text: "Дальше", next: "evening" }
+            ]
+        },
+        readalone: {
+            bg: BG.stancia,
+            name: "—",
+            text: `<i>Письмо жжёт карман. Холодно. Свет гаснет, по стеклу ползёт иней. Тридцать секунд абсолютной тьмы. Потом всё возвращается в норму.</i>`,
+            choices: [
+                { text: "Дальше", next: "evening" }
+            ]
+        },
+        evening: {
+            bg: BG.stancia,
+            name: "Райка",
+            text: `<span style="color:#cabf97">20:00. Вечер</span><br>
+        <b>Райка:</b> Как ты себя вообще?<br>
+        Говорим об одиночестве, о прошлом. Райка сонно сопит. Я укрываю её, смотрю, ухожу на дежурство.`,
+            choices: [
+                { text: "Дежурить", next: "night" }
+            ]
+        },
+        night: {
+            bg: BG.snowstorm,
+            name: "—",
+            text: `<span style="color:#cabf97">01:00. Дежурство</span><br>
+        За окном снег вдруг замирает.<br>
+        Вдалеке — фигура. Я моргаю — она ближе. Моргаю снова — ещё ближе. Напряжение падает. Вдруг она бросается в стекло — <span style="color:#e05a5a">резкий скрип, вспышка страха</span>!<br>
+        <i>Пробуждение. Это был сон... но снег за окном по-настоящему замер на несколько секунд, прежде чем снова пошёл.</i>`,
+            choices: [
+                { text: "Дождаться утра", next: "morning" }
+            ]
+        },
+        morning: {
+            bg: BG.stancia,
+            name: "Райка",
+            text: `<span style="color:#cabf97">2:00. Смена</span><br>
+        <b>Райка:</b> Я тебя сменю. Ложись, чемпион!<br>
+        Я не хочу уходить, страшно. Райка чувствует это.<br>
+        <b>Райка:</b> Ну я же всё-таки старшая сестра.<br>
+        Я сдаюсь, ложусь. Перед тем как закрыть глаза:<br>
+        <b>Я:</b> Позовёшь, если что.<br>
+        <b>Райка:</b> Ага. Сразу.<br>
+        <b>Я:</b> Обещай.<br>
+        <b>Райка:</b> Обещаю.<br>
+        <span style="color:#cabf97">Конец первой ночи.</span>`,
+            choices: [
+                { text: "Завершить", next: "end" }
+            ]
+        },
+        end: {
+            bg: BG.hrushevka,
+            name: "",
+            text: `<center><b>Спасибо за игру.<br>День 1 завершён.</b></center><br>
+        <center><button class="choice-btn" onclick="location.reload()">Сыграть снова</button></center>`,
+            choices: []
+        }
+    };
+
+    // Управление новеллой
+    let state = { scene: 'start' };
+    function showScene(id) {
+        const s = scenes[id];
+        state.scene = id;
+        document.getElementById('bg').style.backgroundImage = `url('${s.bg}')`;
+        document.getElementById('text').innerHTML = s.text;
+        document.getElementById('choices').innerHTML = '';
+        document.getElementById('name').textContent = s.name ? chars[s.name]||s.name : '';
+        document.getElementById('novel').classList.add('fade-in');
+        setTimeout(()=>document.getElementById('novel').classList.remove('fade-in'), 500);
+        // Особые эффекты (например, скример/мерцание)
+        if(id==='showletter' || id==='readalone') shiverEffect();
+        if(id==='night') setTimeout(()=>shiverEffect(1), 1200);
+        // Кнопки выбора
+        if(s.choices && s.choices.length>0){
+            s.choices.forEach(c=>{
+                let btn = document.createElement('button');
+                btn.className='choice-btn';
+                btn.innerText=c.text;
+                btn.onclick=()=>showScene(c.next);
+                document.getElementById('choices').appendChild(btn);
+            });
+        }
+    }
+    function shiverEffect(x=0){
+        document.getElementById('bg').classList.add('shiver');
+        setTimeout(()=>document.getElementById('bg').classList.remove('shiver'), 600);
+        if(!x){
+            document.getElementById('overlay').style.background='rgba(22,22,40,0.98)';
+            setTimeout(()=>document.getElementById('overlay').style.background='rgba(17,18,21,0.65)', 1800);
+        }
+    }
+    // Запуск
+    showScene(state.scene);
+</script>
+</body>
+</html>
